@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今天吃什麼？午餐轉盤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8EE;
+    --ink: #3A2E25;
+    --muted: #8A7868;
+    --orange: #F28C28;
+    --orange-dark: #D9741A;
+    --line: #EADFCF;
+    --card: #FFFFFF;
+    --danger: #E8564A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+  }
+  header { text-align: center; margin-bottom: 24px; }
+  h1 {
+    font-size: clamp(2rem, 7vw, 3rem);
+    font-weight: 900;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+  .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 1.05rem; }
+
+  .layout { display: flex; flex-direction: column; gap: 32px; align-items: center; }
+  @media (min-width: 768px) {
+    .layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 48px; }
+  }
+
+  /* 轉盤區 */
+  .wheel-area { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 400px; }
+  .wheel-wrap { position: relative; width: 80vw; max-width: 400px; aspect-ratio: 1; }
+  .pointer {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 16px solid transparent; border-right: 16px solid transparent;
+    border-top: 30px solid var(--ink);
+    z-index: 2;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.2));
+  }
+  #wheel {
+    width: 100%; height: 100%; display: block; border-radius: 50%;
+    transition: transform 3s cubic-bezier(0.17, 0.67, 0.21, 1);
+    box-shadow: 0 0 0 8px var(--card), 0 0 0 10px var(--line);
+  }
+  .hub {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 18%; aspect-ratio: 1; border-radius: 50%;
+    background: var(--card); border: 4px solid var(--ink);
+    display: grid; place-items: center; font-size: clamp(1rem, 5vw, 1.6rem);
+    pointer-events: none;
+  }
+  .wheel-empty {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    padding: 30%; color: var(--muted); font-weight: 700; pointer-events: none;
+  }
+
+  button {
+    font-family: inherit; font-size: 1rem; cursor: pointer; border: none;
+    border-radius: 999px; padding: 10px 20px; font-weight: 700;
+    transition: background-color .15s, transform .1s;
+  }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button:disabled { cursor: not-allowed; opacity: .45; }
+  .btn-primary { background: var(--orange); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--orange-dark); }
+  .btn-spin { font-size: 1.4rem; padding: 14px 48px; box-shadow: 0 4px 0 var(--orange-dark); }
+  .btn-ghost { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+  .btn-ghost:hover:not(:disabled) { background: #fff; }
+  .spin-hint { margin: -8px 0 0; color: var(--muted); font-size: .9rem; min-height: 1.4em; }
+
+  /* 選項區 */
+  .options { width: 100%; max-width: 400px; }
+  .options h2 { font-size: 1.2rem; margin: 0 0 12px; }
+  .count { color: var(--muted); font-weight: 400; font-size: .95rem; }
+  .add-row { display: flex; gap: 8px; }
+  .add-row input {
+    flex: 1; min-width: 0; font: inherit; padding: 10px 16px;
+    border: 2px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink);
+  }
+  .msg { min-height: 1.5em; margin: 6px 4px 8px; font-size: .9rem; color: var(--danger); }
+  .msg.ok { color: #2E8B6A; }
+  ul { list-style: none; margin: 0 0 16px; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 8px 8px 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  li .name { flex: 1; overflow-wrap: anywhere; }
+  .btn-del {
+    background: transparent; color: var(--muted); padding: 2px 10px; font-size: 1.2rem; line-height: 1;
+  }
+  .btn-del:hover:not(:disabled) { color: var(--danger); background: #FDECEA; }
+  .list-empty { color: var(--muted); text-align: center; padding: 16px; border: 2px dashed var(--line); border-radius: 12px; margin-bottom: 16px; }
+
+  /* 結果視窗 */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(58, 46, 37, .55);
+    display: none; place-items: center; padding: 20px; z-index: 10;
+  }
+  .overlay.show { display: grid; }
+  .dialog {
+    background: var(--card); border-radius: 24px; padding: 32px 28px 28px;
+    width: 100%; max-width: 360px; text-align: center;
+    animation: pop .35s cubic-bezier(.2, 1.4, .4, 1);
+  }
+  .dialog .label { margin: 0; color: var(--muted); }
+  .dialog .result { font-size: clamp(1.8rem, 8vw, 2.4rem); font-weight: 900; margin: 4px 0 24px; overflow-wrap: anywhere; }
+  .dialog .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    #wheel { transition-duration: .01s; }
+    .dialog { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>今天吃什麼？</h1>
+    <p class="subtitle">讓轉盤幫你決定</p>
+  </header>
+
+  <main class="layout">
+    <section class="wheel-area" aria-label="轉盤">
+      <div class="wheel-wrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" aria-label="午餐轉盤"></canvas>
+        <div class="hub" aria-hidden="true">🍱</div>
+        <div class="wheel-empty" id="wheelEmpty">先新增幾家餐廳吧！</div>
+      </div>
+      <button class="btn-primary btn-spin" id="spinBtn">開始轉！</button>
+      <p class="spin-hint" id="spinHint"></p>
+    </section>
+
+    <section class="options" aria-label="選項">
+      <h2>候選餐廳 <span class="count" id="count"></span></h2>
+      <div class="add-row">
+        <input id="nameInput" type="text" maxlength="20" placeholder="輸入餐廳名稱" aria-label="餐廳名稱">
+        <button class="btn-primary" id="addBtn">新增</button>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <ul id="list"></ul>
+      <div class="list-empty" id="listEmpty">還沒有任何選項</div>
+      <button class="btn-ghost" id="presetBtn">載入預設選項</button>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="resultText">
+  <div class="dialog">
+    <p class="label">今天就吃：</p>
+    <p class="result" id="resultText"></p>
+    <div class="actions">
+      <button class="btn-ghost" id="againBtn">再轉一次</button>
+      <button class="btn-primary" id="okBtn">就決定是它</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const COLORS = ["#F28C28", "#F6C443", "#F497B6", "#E8564A", "#7FD3B4", "#7EB8E8"];
+  const PRESETS = ["自助餐", "麥當勞", "牛肉麵", "便利商店", "滷肉飯", "義大利麵"];
+  const STORAGE_KEY = "lunch-wheel-options";
+
+  const canvas = document.getElementById("wheel");
+  const ctx = canvas.getContext("2d");
+  const els = {
+    input: document.getElementById("nameInput"),
+    addBtn: document.getElementById("addBtn"),
+    msg: document.getElementById("msg"),
+    list: document.getElementById("list"),
+    listEmpty: document.getElementById("listEmpty"),
+    wheelEmpty: document.getElementById("wheelEmpty"),
+    count: document.getElementById("count"),
+    spinBtn: document.getElementById("spinBtn"),
+    spinHint: document.getElementById("spinHint"),
+    presetBtn: document.getElementById("presetBtn"),
+    overlay: document.getElementById("overlay"),
+    resultText: document.getElementById("resultText"),
+    againBtn: document.getElementById("againBtn"),
+    okBtn: document.getElementById("okBtn"),
+  };
+
+  let options = load();
+  let rotation = 0;     // 目前累積的旋轉角度（度）
+  let spinning = false;
+
+  // ---------- 資料保存 ----------
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(options)); } catch (e) {}
+  }
+
+  // 相鄰扇形不同色：選項數為 6n+1 時，最後一格換色避免與第一格相同
+  function colorOf(i) {
+    if (i === options.length - 1 && options.length % COLORS.length === 1 && options.length > 1) {
+      return COLORS[2];
+    }
+    return COLORS[i % COLORS.length];
+  }
+
+  // ---------- 畫轉盤 ----------
+  function drawWheel() {
+    const size = canvas.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+
+    const r = size / 2;
+    const n = options.length;
+    if (n === 0) {
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath(); ctx.arc(r, r, r, 0, Math.PI * 2); ctx.fill();
+      return;
+    }
+    const seg = (Math.PI * 2) / n;
+    const fontSize = Math.max(12, Math.min(20, size / 18));
+
+    options.forEach((name, i) => {
+      const start = -Math.PI / 2 + i * seg; // 從正上方開始順時針
+      ctx.beginPath();
+      ctx.moveTo(r, r);
+      ctx.arc(r, r, r, start, start + seg);
+      ctx.closePath();
+      ctx.fillStyle = colorOf(i);
+      ctx.fill();
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 文字沿半徑方向
+      ctx.save();
+      ctx.translate(r, r);
+      ctx.rotate(start + seg / 2);
+      ctx.fillStyle = "#3A2E25";
+      ctx.font = `700 ${fontSize}px "Noto Sans TC", sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      const maxWidth = r * 0.62;
+      ctx.fillText(fitText(name, maxWidth), r - 16, 0);
+      ctx.restore();
+    });
+  }
+
+  // 名稱太長時截斷並加上「…」
+  function fitText(text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while (t.length > 1 && ctx.measureText(t + "…").width > maxWidth) t = t.slice(0, -1);
+    return t + "…";
+  }
+
+  // ---------- 畫清單與狀態 ----------
+  function render() {
+    els.list.innerHTML = "";
+    options.forEach((name, i) => {
+      const li = document.createElement("li");
+      const sw = document.createElement("span");
+      sw.className = "swatch";
+      sw.style.background = colorOf(i);
+      const span = document.createElement("span");
+      span.className = "name";
+      span.textContent = name;
+      const del = document.createElement("button");
+      del.className = "btn-del";
+      del.textContent = "×";
+      del.setAttribute("aria-label", `刪除 ${name}`);
+      del.disabled = spinning;
+      del.addEventListener("click", () => removeOption(i));
+      li.append(sw, span, del);
+      els.list.appendChild(li);
+    });
+
+    const n = options.length;
+    els.listEmpty.style.display = n ? "none" : "block";
+    els.wheelEmpty.style.display = n ? "none" : "grid";
+    els.count.textContent = n ? `（${n}）` : "";
+    els.spinBtn.disabled = spinning || n < 2;
+    els.addBtn.disabled = spinning;
+    els.presetBtn.disabled = spinning;
+    els.spinHint.textContent = n === 1 ? "至少需要 2 個選項才能轉" : "";
+    drawWheel();
+  }
+
+  function showMsg(text, ok = false) {
+    els.msg.textContent = text;
+    els.msg.classList.toggle("ok", ok);
+  }
+
+  // ---------- 新增 / 刪除 ----------
+  function addOption() {
+    const name = els.input.value.trim();
+    if (!name) { showMsg("請輸入餐廳名稱"); return; }
+    if (options.includes(name)) { showMsg(`「${name}」已經在清單裡了`); return; }
+    options.push(name);
+    save();
+    els.input.value = "";
+    showMsg(`已新增「${name}」`, true);
+    render();
+    els.input.focus();
+  }
+
+  function removeOption(i) {
+    if (spinning) return;
+    const [removed] = options.splice(i, 1);
+    save();
+    showMsg(`已刪除「${removed}」`, true);
+    render();
+  }
+
+  function loadPresets() {
+    let added = 0;
+    PRESETS.forEach(p => { if (!options.includes(p)) { options.push(p); added++; } });
+    save();
+    showMsg(added ? `已載入 ${added} 個預設選項` : "預設選項都已經在清單裡了", added > 0);
+    render();
+  }
+
+  // ---------- 旋轉 ----------
+  function spin() {
+    const n = options.length;
+    if (spinning || n < 2) return;
+    spinning = true;
+    showMsg("");
+    render();
+
+    const segDeg = 360 / n;
+    const target = Math.floor(Math.random() * n);
+    // 停在目標格內的隨機位置（避開邊界）
+    const offset = target * segDeg + segDeg * (0.15 + Math.random() * 0.7);
+    const extraSpins = 5 + Math.floor(Math.random() * 4); // 5~8 圈
+    const current = ((rotation % 360) + 360) % 360;
+    const desired = (360 - offset) % 360;
+    rotation += extraSpins * 360 + ((desired - current + 360) % 360);
+    canvas.style.transform = `rotate(${rotation}deg)`;
+  }
+
+  // 依最終角度計算指針指到的格子
+  function currentIndex() {
+    const n = options.length;
+    const deg = ((rotation % 360) + 360) % 360;
+    const pointerOffset = (360 - deg) % 360;
+    return Math.floor(pointerOffset / (360 / n)) % n;
+  }
+
+  canvas.addEventListener("transitionend", () => {
+    if (!spinning) return;
+    spinning = false;
+    render();
+    els.resultText.textContent = options[currentIndex()] + "！";
+    els.overlay.classList.add("show");
+    els.okBtn.focus();
+  });
+
+  function closeDialog() {
+    els.overlay.classList.remove("show");
+    els.spinBtn.focus();
+  }
+
+  // ---------- 事件 ----------
+  els.addBtn.addEventListener("click", addOption);
+  els.input.addEventListener("keydown", e => { if (e.key === "Enter") addOption(); });
+  els.presetBtn.addEventListener("click", loadPresets);
+  els.spinBtn.addEventListener("click", spin);
+  els.okBtn.addEventListener("click", closeDialog);
+  els.againBtn.addEventListener("click", () => { closeDialog(); spin(); });
+  els.overlay.addEventListener("click", e => { if (e.target === els.overlay) closeDialog(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && els.overlay.classList.contains("show")) closeDialog();
+  });
+  window.addEventListener("resize", drawWheel);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawWheel);
+
+  render();
+</script>
+</body>
+</html>
